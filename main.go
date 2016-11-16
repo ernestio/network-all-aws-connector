@@ -8,45 +8,22 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 
 	ecc "github.com/ernestio/ernest-config-client"
+	"github.com/ernestio/ernestaws"
+	"github.com/ernestio/ernestaws/network"
 	"github.com/nats-io/nats"
 )
 
 var nc *nats.Conn
 var natsErr error
+var err error
 
 func eventHandler(m *nats.Msg) {
-	n := New(m.Subject, m.Data)
+	n := network.New(m.Subject, m.Data)
 
-	err := n.Process()
-	if err != nil {
-		return
-	}
-
-	if err = n.Validate(); err != nil {
-		n.Error(err)
-		return
-	}
-
-	parts := strings.Split(m.Subject, ".")
-	switch parts[1] {
-	case "create":
-		err = n.Create()
-	case "update":
-		err = n.Update()
-	case "delete":
-		err = n.Delete()
-	case "get":
-		err = n.Get()
-	}
-	if err != nil {
-		n.Error(err)
-		return
-	}
-
-	n.Complete()
+	subject, data := ernestaws.Handle(&n)
+	nc.Publish(subject, data)
 }
 
 func main() {
